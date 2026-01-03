@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    container_name: golang-gin-${ENV:-dev}-app
+    hostname: golang-gin-${ENV:-dev}-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "17000:17000"   # HTTP
+      - "17001:17001" # gRPC
+    environment:
+      - GIN_MODE=release
+      - HTTP_MOCK_URL=http://http-mock:17002
+      - GRPC_MOCK_URL=grpc-mock:17003
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - MAILHOG_HOST=mailhog
+      - MAILHOG_PORT=1025
+    networks:
+      - app-network
+    depends_on:
+      - postgres
+      - rabbitmq
+      - http-mock
+      - grpc-mock
+      - mailhog
+    restart: unless-stopped
+
+  # PostgreSQL
+  # WARNING: Using default credentials for DEVELOPMENT ONLY
+  # NEVER use these credentials in production!
+  postgres:
+    container_name: golang-gin-${ENV:-dev}-postgres
+    hostname: golang-gin-${ENV:-dev}-postgres
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-golang_gin_dev}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev}  # TODO: Change in production
+      POSTGRES_DB: ${POSTGRES_DB:-golang_gin_dev}
+    ports:
+      - "17004:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  # RabbitMQ
+  # WARNING: Using default credentials for DEVELOPMENT ONLY
+  # NEVER use these credentials in production!
+  rabbitmq:
+    container_name: golang-gin-${ENV:-dev}-rabbitmq
+    hostname: golang-gin-${ENV:-dev}-rabbitmq
+    image: rabbitmq:4.2-management-alpine
+    ports:
+      - "17005:5672"   # AMQP
+      - "17006:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-golang_gin_dev}  # TODO: Change in production
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbitmq_dev}  # TODO: Change in production
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - app-network
+
+  # HTTP Mock Server
+  http-mock:
+    container_name: golang-gin-${ENV:-dev}-http-mock
+    hostname: golang-gin-${ENV:-dev}-http-mock
+    build:
+      context: ./mocks/http-mock
+      dockerfile: Dockerfile
+    ports:
+      - "17002:17002"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # gRPC Mock Server
+  grpc-mock:
+    container_name: golang-gin-${ENV:-dev}-grpc-mock
+    hostname: golang-gin-${ENV:-dev}-grpc-mock
+    build:
+      context: ./mocks/grpc-mock
+      dockerfile: Dockerfile
+    ports:
+      - "17003:17003"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # RabbitMQ Consumer Mock
+  rabbitmq-consumer:
+    container_name: golang-gin-${ENV:-dev}-rabbitmq-consumer
+    hostname: golang-gin-${ENV:-dev}-rabbitmq-consumer
+    build:
+      context: ./mocks/rabbitmq-consumer
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # MailHog (メール送信テスト用)
+  mailhog:
+    container_name: golang-gin-${ENV:-dev}-mailhog
+    hostname: golang-gin-${ENV:-dev}-mailhog
+    image: mailhog/mailhog:latest
+    ports:
+      - "17007:1025" # SMTP
+      - "17008:8025" # Web UI
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  rabbitmq-data:

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package product;
+
+option go_package = "grpc-mock/proto";
+
+// Product service (外部サービスのモック)
+service ProductService {
+  // Get all products
+  rpc GetProducts(GetProductsRequest) returns (GetProductsResponse);
+
+  // Get product by ID
+  rpc GetProductByID(GetProductByIDRequest) returns (Product);
+
+  // Create a new product
+  rpc CreateProduct(CreateProductRequest) returns (Product);
+}
+
+// Product message
+message Product {
+  int32 id = 1;
+  string name = 2;
+  string description = 3;
+  double price = 4;
+  int32 stock = 5;
+}
+
+// Request/Response messages
+message GetProductsRequest {}
+
+message GetProductsResponse {
+  repeated Product products = 1;
+}
+
+message GetProductByIDRequest {
+  int32 id = 1;
+}
+
+message CreateProductRequest {
+  string name = 1;
+  string description = 2;
+  double price = 3;
+  int32 stock = 4;
+}

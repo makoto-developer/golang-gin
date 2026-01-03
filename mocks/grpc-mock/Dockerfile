@@ -1,0 +1,37 @@
+FROM golang:1.25.5-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+RUN apk add --no-cache git protobuf-dev
+
+# Copy go mod files
+COPY go.mod go.sum* ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Install protoc plugins
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+# Generate gRPC code
+RUN protoc --go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    proto/product.proto
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/grpc-mock .
+
+# Runtime stage
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/grpc-mock .
+
+EXPOSE 50052
+
+CMD ["./grpc-mock"]

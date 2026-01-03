@@ -1,2 +1,0 @@
-# usecaseとrepositoryを橋渡し
-

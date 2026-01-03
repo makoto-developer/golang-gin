@@ -2,3 +2,32 @@
 
 ## editor
 .idea
+
+## Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+## Test coverage
+coverage.out
+coverage.html
+
+## Protocol Buffers generated files
+grpc/proto/*.pb.go
+
+## Docker volumes
+postgres-data/
+rabbitmq-data/
+
+## Environment files
+.env
+.env.local
+.envrc
+
+## AI
+.serena

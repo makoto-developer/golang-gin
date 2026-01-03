@@ -1,0 +1,29 @@
+# Environment variables for golang-gin
+
+# Go environment
+export GOPATH=$(go env GOPATH)
+export PATH="$PATH:$GOPATH/bin"
+
+# Application settings
+export GIN_MODE=debug
+export HTTP_PORT=17000
+export GRPC_PORT=17001
+
+# Mock server URLs (for local development)
+export HTTP_MOCK_URL=http://localhost:17002
+export GRPC_MOCK_URL=localhost:17003
+
+# Database settings (Development only - change in production!)
+export POSTGRES_HOST=localhost
+export POSTGRES_PORT=17004
+export POSTGRES_USER=postgres
+export POSTGRES_PASSWORD=change_me_in_production
+export POSTGRES_DB=golang_gin
+
+# RabbitMQ settings (Development only - change in production!)
+export RABBITMQ_URL=amqp://guest:guest@localhost:17005/
+
+# Mail settings (MailHog)
+export MAILHOG_HOST=localhost
+export MAILHOG_SMTP_PORT=17007
+export MAILHOG_WEB_PORT=17008

@@ -1,0 +1,13 @@
+# Protocol Buffers code generation用のDockerfile
+FROM golang:1.21.1-alpine
+
+# Install protoc
+RUN apk add --no-cache protobuf-dev
+
+# Install Go protoc plugins
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+WORKDIR /workspace
+
+CMD ["/bin/sh"]
