@@ -7,15 +7,15 @@ import (
 
 func TestAlbum_Struct(t *testing.T) {
 	album := Album{
-		ID:     "1",
+		ID:     1,
 		Title:  "Test Album",
 		Artist: "Test Artist",
 		Price:  19.99,
 		Tax:    0.1,
 	}
 
-	if album.ID != "1" {
-		t.Errorf("Expected ID '1', got '%s'", album.ID)
+	if album.ID != 1 {
+		t.Errorf("Expected ID 1, got %d", album.ID)
 	}
 	if album.Title != "Test Album" {
 		t.Errorf("Expected Title 'Test Album', got '%s'", album.Title)
@@ -33,7 +33,7 @@ func TestAlbum_Struct(t *testing.T) {
 
 func TestAlbum_JSONMarshaling(t *testing.T) {
 	album := Album{
-		ID:     "1",
+		ID:     1,
 		Title:  "Test Album",
 		Artist: "Test Artist",
 		Price:  19.99,
@@ -55,7 +55,7 @@ func TestAlbum_JSONMarshaling(t *testing.T) {
 
 	// Compare
 	if unmarshaled.ID != album.ID {
-		t.Errorf("ID mismatch: expected '%s', got '%s'", album.ID, unmarshaled.ID)
+		t.Errorf("ID mismatch: expected %d, got %d", album.ID, unmarshaled.ID)
 	}
 	if unmarshaled.Title != album.Title {
 		t.Errorf("Title mismatch: expected '%s', got '%s'", album.Title, unmarshaled.Title)
@@ -71,31 +71,18 @@ func TestAlbum_JSONMarshaling(t *testing.T) {
 	}
 }
 
-func TestAlbums_InitialData(t *testing.T) {
-	if len(Albums) == 0 {
-		t.Error("Expected Albums to have initial data")
-	}
+func TestAlbum_TableName(t *testing.T) {
+	album := Album{}
+	tableName := album.TableName()
 
-	// Verify first album
-	if len(Albums) > 0 {
-		firstAlbum := Albums[0]
-		if firstAlbum.ID == "" {
-			t.Error("First album should have an ID")
-		}
-		if firstAlbum.Title == "" {
-			t.Error("First album should have a title")
-		}
-		if firstAlbum.Artist == "" {
-			t.Error("First album should have an artist")
-		}
+	if tableName != "albums" {
+		t.Errorf("Expected table name 'albums', got '%s'", tableName)
 	}
-
-	t.Logf("Albums has %d initial records", len(Albums))
 }
 
 func TestAlbum_JSONTags(t *testing.T) {
 	jsonStr := `{
-		"id": "test-id",
+		"id": 123,
 		"title": "Test Title",
 		"artist": "Test Artist",
 		"price": 29.99,
@@ -108,8 +95,8 @@ func TestAlbum_JSONTags(t *testing.T) {
 		t.Fatalf("Failed to unmarshal JSON: %v", err)
 	}
 
-	if album.ID != "test-id" {
-		t.Errorf("Expected ID 'test-id', got '%s'", album.ID)
+	if album.ID != 123 {
+		t.Errorf("Expected ID 123, got %d", album.ID)
 	}
 	if album.Title != "Test Title" {
 		t.Errorf("Expected Title 'Test Title', got '%s'", album.Title)

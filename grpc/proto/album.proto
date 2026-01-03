@@ -37,9 +37,8 @@ message GetAlbumByIDRequest {
 }
 
 message CreateAlbumRequest {
-  string id = 1;
-  string title = 2;
-  string artist = 3;
-  double price = 4;
-  float tax = 5;
+  string title = 1;
+  string artist = 2;
+  double price = 3;
+  float tax = 4;
 }

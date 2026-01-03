@@ -10,16 +10,49 @@ import (
 	"syscall"
 	"time"
 
+	"golang-gin/database"
 	"golang-gin/handlers"
+	"golang-gin/models"
+	"golang-gin/repository"
 	grpcServer "golang-gin/grpc"
 	"golang-gin/middleware"
 	pb "golang-gin/grpc/proto"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 )
 
 func main() {
+	// Load .env file if it exists
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
+	// Initialize database
+	dbConfig := database.GetConfigFromEnv()
+	db, err := database.Connect(dbConfig)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+
+	// Run migrations
+	if err := database.Migrate(db, &models.Album{}); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Seed initial data
+	if err := database.Seed(db, models.SeedAlbums); err != nil {
+		log.Fatalf("Failed to seed database: %v", err)
+	}
+
+	// Initialize repositories
+	albumRepo := repository.NewAlbumRepository(db)
+
+	// Initialize handlers
+	albumHandler := handlers.NewAlbumHandler(albumRepo)
+
 	// Create channels for graceful shutdown
 	done := make(chan bool, 1)
 	quit := make(chan os.Signal, 1)
@@ -37,9 +70,9 @@ func main() {
 	// Album routes
 	v1 := router.Group("/api/v1")
 	{
-		v1.GET("/albums", handlers.GetAlbums)
-		v1.GET("/albums/:id", handlers.GetAlbumByID)
-		v1.POST("/albums", handlers.PostAlbums)
+		v1.GET("/albums", albumHandler.GetAlbums)
+		v1.GET("/albums/:id", albumHandler.GetAlbumByID)
+		v1.POST("/albums", albumHandler.PostAlbums)
 	}
 
 	// HTTP server
@@ -63,7 +96,7 @@ func main() {
 	}
 
 	grpcSrv := grpc.NewServer()
-	pb.RegisterAlbumServiceServer(grpcSrv, grpcServer.NewServer())
+	pb.RegisterAlbumServiceServer(grpcSrv, grpcServer.NewServer(albumRepo))
 
 	// Start gRPC server in goroutine
 	go func() {

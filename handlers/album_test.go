@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"golang-gin/models"
+	"golang-gin/repository"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,15 +12,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func setupTestRouter() *gin.Engine {
+func setupTestRouter() (*gin.Engine, *AlbumHandler) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	return router
+	mockRepo := repository.NewMockAlbumRepository()
+	handler := NewAlbumHandler(mockRepo)
+	return router, handler
 }
 
 func TestGetAlbums(t *testing.T) {
-	router := setupTestRouter()
-	router.GET("/albums", GetAlbums)
+	router, handler := setupTestRouter()
+	router.GET("/albums", handler.GetAlbums)
 
 	req, _ := http.NewRequest("GET", "/albums", nil)
 	w := httptest.NewRecorder()
@@ -43,8 +46,8 @@ func TestGetAlbums(t *testing.T) {
 }
 
 func TestGetAlbumByID(t *testing.T) {
-	router := setupTestRouter()
-	router.GET("/albums/:id", GetAlbumByID)
+	router, handler := setupTestRouter()
+	router.GET("/albums/:id", handler.GetAlbumByID)
 
 	tests := []struct {
 		name           string
@@ -53,6 +56,7 @@ func TestGetAlbumByID(t *testing.T) {
 	}{
 		{"Valid ID", "1", http.StatusOK},
 		{"Invalid ID", "999", http.StatusNotFound},
+		{"Invalid ID format", "abc", http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
@@ -71,8 +75,8 @@ func TestGetAlbumByID(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to unmarshal response: %v", err)
 				}
-				if album.ID != tt.id {
-					t.Errorf("Expected album ID %s, got %s", tt.id, album.ID)
+				if album.ID == 0 {
+					t.Error("Expected valid album ID")
 				}
 			}
 		})
@@ -80,11 +84,10 @@ func TestGetAlbumByID(t *testing.T) {
 }
 
 func TestPostAlbums(t *testing.T) {
-	router := setupTestRouter()
-	router.POST("/albums", PostAlbums)
+	router, handler := setupTestRouter()
+	router.POST("/albums", handler.PostAlbums)
 
 	newAlbum := models.Album{
-		ID:     "100",
 		Title:  "Test Album",
 		Artist: "Test Artist",
 		Price:  19.99,
@@ -107,8 +110,8 @@ func TestPostAlbums(t *testing.T) {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	if createdAlbum.ID != newAlbum.ID {
-		t.Errorf("Expected album ID %s, got %s", newAlbum.ID, createdAlbum.ID)
+	if createdAlbum.ID == 0 {
+		t.Error("Expected valid album ID")
 	}
 	if createdAlbum.Title != newAlbum.Title {
 		t.Errorf("Expected album title %s, got %s", newAlbum.Title, createdAlbum.Title)
@@ -116,8 +119,8 @@ func TestPostAlbums(t *testing.T) {
 }
 
 func TestPostAlbums_InvalidJSON(t *testing.T) {
-	router := setupTestRouter()
-	router.POST("/albums", PostAlbums)
+	router, handler := setupTestRouter()
+	router.POST("/albums", handler.PostAlbums)
 
 	invalidJSON := []byte(`{"invalid": "json"`)
 	req, _ := http.NewRequest("POST", "/albums", bytes.NewBuffer(invalidJSON))

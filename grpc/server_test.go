@@ -2,14 +2,15 @@ package grpc
 
 import (
 	"context"
-	"golang-gin/models"
+	"golang-gin/repository"
 	"testing"
 
 	pb "golang-gin/grpc/proto"
 )
 
 func TestServer_GetAlbums(t *testing.T) {
-	server := NewServer()
+	mockRepo := repository.NewMockAlbumRepository()
+	server := NewServer(mockRepo)
 	ctx := context.Background()
 
 	resp, err := server.GetAlbums(ctx, &pb.GetAlbumsRequest{})
@@ -21,10 +22,9 @@ func TestServer_GetAlbums(t *testing.T) {
 		t.Error("Expected at least one album")
 	}
 
-	// Verify first album matches models.Albums
-	if len(resp.Albums) > 0 && len(models.Albums) > 0 {
-		if resp.Albums[0].Id != models.Albums[0].ID {
-			t.Errorf("Expected album ID %s, got %s", models.Albums[0].ID, resp.Albums[0].Id)
+	if len(resp.Albums) > 0 {
+		if resp.Albums[0].Id != "1" {
+			t.Errorf("Expected album ID 1, got %s", resp.Albums[0].Id)
 		}
 	}
 
@@ -32,7 +32,8 @@ func TestServer_GetAlbums(t *testing.T) {
 }
 
 func TestServer_GetAlbumByID(t *testing.T) {
-	server := NewServer()
+	mockRepo := repository.NewMockAlbumRepository()
+	server := NewServer(mockRepo)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -42,11 +43,20 @@ func TestServer_GetAlbumByID(t *testing.T) {
 	}{
 		{"Valid ID", "1", false},
 		{"Invalid ID", "999", true},
+		{"Invalid ID format", "abc", false}, // エラーが返されるが nil にはならない
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp, err := server.GetAlbumByID(ctx, &pb.GetAlbumByIDRequest{Id: tt.id})
+
+			if tt.name == "Invalid ID format" {
+				if err == nil {
+					t.Error("Expected error for invalid ID format")
+				}
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("GetAlbumByID failed: %v", err)
 			}
@@ -66,13 +76,11 @@ func TestServer_GetAlbumByID(t *testing.T) {
 }
 
 func TestServer_CreateAlbum(t *testing.T) {
-	server := NewServer()
+	mockRepo := repository.NewMockAlbumRepository()
+	server := NewServer(mockRepo)
 	ctx := context.Background()
 
-	initialCount := len(models.Albums)
-
 	req := &pb.CreateAlbumRequest{
-		Id:     "999",
 		Title:  "Test Album",
 		Artist: "Test Artist",
 		Price:  29.99,
@@ -84,19 +92,14 @@ func TestServer_CreateAlbum(t *testing.T) {
 		t.Fatalf("CreateAlbum failed: %v", err)
 	}
 
-	if resp.Id != req.Id {
-		t.Errorf("Expected album ID %s, got %s", req.Id, resp.Id)
+	if resp.Id == "" {
+		t.Error("Expected non-empty album ID")
 	}
 	if resp.Title != req.Title {
 		t.Errorf("Expected title %s, got %s", req.Title, resp.Title)
 	}
 	if resp.Artist != req.Artist {
 		t.Errorf("Expected artist %s, got %s", req.Artist, resp.Artist)
-	}
-
-	// Verify album was added to models.Albums
-	if len(models.Albums) != initialCount+1 {
-		t.Errorf("Expected %d albums, got %d", initialCount+1, len(models.Albums))
 	}
 
 	t.Logf("Created album: %+v", resp)

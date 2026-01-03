@@ -6,6 +6,7 @@ import (
 	"golang-gin/handlers"
 	"golang-gin/middleware"
 	"golang-gin/models"
+	"golang-gin/repository"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,15 +21,19 @@ func setupIntegrationTestRouter() *gin.Engine {
 	router.Use(middleware.CORS())
 	router.Use(gin.Recovery())
 
+	// Initialize mock repository and handler
+	mockRepo := repository.NewMockAlbumRepository()
+	albumHandler := handlers.NewAlbumHandler(mockRepo)
+
 	// Health check
 	router.GET("/health", handlers.HealthCheck)
 
 	// Album routes
 	v1 := router.Group("/api/v1")
 	{
-		v1.GET("/albums", handlers.GetAlbums)
-		v1.GET("/albums/:id", handlers.GetAlbumByID)
-		v1.POST("/albums", handlers.PostAlbums)
+		v1.GET("/albums", albumHandler.GetAlbums)
+		v1.GET("/albums/:id", albumHandler.GetAlbumByID)
+		v1.POST("/albums", albumHandler.PostAlbums)
 	}
 
 	return router
@@ -80,14 +85,13 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 
 		var album models.Album
 		json.Unmarshal(w.Body.Bytes(), &album)
-		if album.ID != "1" {
-			t.Errorf("Expected album ID '1', got '%s'", album.ID)
+		if album.ID != 1 {
+			t.Errorf("Expected album ID 1, got %d", album.ID)
 		}
 	})
 
 	t.Run("4. Create New Album", func(t *testing.T) {
 		newAlbum := models.Album{
-			ID:     "integration-test",
 			Title:  "Integration Test Album",
 			Artist: "Test Artist",
 			Price:  29.99,
@@ -106,8 +110,8 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 
 		var createdAlbum models.Album
 		json.Unmarshal(w.Body.Bytes(), &createdAlbum)
-		if createdAlbum.ID != newAlbum.ID {
-			t.Errorf("Expected album ID '%s', got '%s'", newAlbum.ID, createdAlbum.ID)
+		if createdAlbum.ID == 0 {
+			t.Error("Expected non-zero album ID")
 		}
 	})
 
@@ -122,12 +126,22 @@ func TestIntegration_FullWorkflow(t *testing.T) {
 	})
 
 	t.Run("6. 404 Not Found", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/api/v1/albums/nonexistent", nil)
+		req, _ := http.NewRequest("GET", "/api/v1/albums/999", nil)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("Expected status 404, got %d", w.Code)
+		}
+	})
+
+	t.Run("7. Invalid ID format", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/v1/albums/invalid", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
 		}
 	})
 }
@@ -148,7 +162,7 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 	})
 
 	t.Run("Missing Content-Type", func(t *testing.T) {
-		newAlbum := models.Album{ID: "test", Title: "Test", Artist: "Test", Price: 10, Tax: 0.1}
+		newAlbum := models.Album{Title: "Test", Artist: "Test", Price: 10, Tax: 0.1}
 		jsonData, _ := json.Marshal(newAlbum)
 		req, _ := http.NewRequest("POST", "/api/v1/albums", bytes.NewBuffer(jsonData))
 		// Not setting Content-Type header
